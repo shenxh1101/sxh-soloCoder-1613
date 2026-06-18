@@ -30,6 +30,7 @@ interface GymState {
   setCurrentMemberId: (id: string | null) => void;
   addMeasurement: (measurement: Omit<Measurement, 'id'>) => void;
   addTrainingPlan: (plan: Omit<TrainingPlan, 'id' | 'exercises'> & { exercises: Omit<PlanExercise, 'id' | 'planId'>[] }) => void;
+  updateTrainingPlan: (planId: string, plan: Partial<Omit<TrainingPlan, 'id' | 'exercises'>> & { exercises?: Omit<PlanExercise, 'id' | 'planId'>[] }) => void;
   deleteTrainingPlan: (planId: string) => void;
   toggleCheckin: (memberId: string, planId: string, exerciseId: string, date: string) => void;
 }
@@ -67,6 +68,32 @@ export const useStore = create<GymState>()(
             exercises,
           };
           return { trainingPlans: [...state.trainingPlans, newPlan] };
+        }),
+      updateTrainingPlan: (planId, planUpdate) =>
+        set((state) => {
+          const trainingPlans = state.trainingPlans.map((p) => {
+            if (p.id !== planId) return p;
+            let newExercises = p.exercises;
+            if (planUpdate.exercises) {
+              newExercises = planUpdate.exercises.map((exercise) => ({
+                ...exercise,
+                id: generateId(),
+                planId,
+              }));
+            }
+            return {
+              ...p,
+              ...planUpdate,
+              exercises: newExercises,
+            };
+          });
+          const validExerciseIds = new Set(
+            trainingPlans.flatMap((p) => p.exercises.map((e) => e.id))
+          );
+          const checkins = state.checkins.filter(
+            (c) => c.planId !== planId || validExerciseIds.has(c.exerciseId)
+          );
+          return { trainingPlans, checkins };
         }),
       deleteTrainingPlan: (planId) =>
         set((state) => ({

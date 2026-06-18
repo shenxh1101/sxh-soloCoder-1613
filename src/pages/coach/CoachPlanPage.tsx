@@ -10,6 +10,7 @@ import {
   Dumbbell,
   RotateCcw,
   X,
+  Pencil,
 } from 'lucide-react';
 import { useStore } from '../../store';
 import { cn } from '../../lib/utils';
@@ -65,6 +66,7 @@ export default function CoachPlanPage() {
   const members = useStore((s) => s.members);
   const trainingPlans = useStore((s) => s.trainingPlans);
   const addTrainingPlan = useStore((s) => s.addTrainingPlan);
+  const updateTrainingPlan = useStore((s) => s.updateTrainingPlan);
   const deleteTrainingPlan = useStore((s) => s.deleteTrainingPlan);
 
   const member = useMemo(() => members.find((m) => m.id === id), [members, id]);
@@ -75,6 +77,7 @@ export default function CoachPlanPage() {
 
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [planName, setPlanName] = useState('');
@@ -93,6 +96,42 @@ export default function CoachPlanPage() {
     setExercises([emptyExercise()]);
     setFormErrors({});
     setShowForm(false);
+    setEditingPlanId(null);
+  };
+
+  const handleEdit = (planId: string) => {
+    const plan = trainingPlans.find((p) => p.id === planId);
+    if (!plan) return;
+
+    setEditingPlanId(planId);
+    setPlanName(plan.name);
+    setCycleType(plan.cycleType);
+    setStartDate(plan.startDate);
+    setEndDate(plan.endDate);
+
+    const grouped: Record<string, ExerciseFormData> = {};
+    plan.exercises.forEach((ex) => {
+      const key = `${ex.name}-${ex.sets}-${ex.reps}-${ex.weight}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          id: Math.random().toString(36).substring(2, 15),
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight,
+          daysOfWeek: [],
+          daysOfMonth: [],
+        };
+      }
+      if (ex.dayOfWeek !== undefined) {
+        grouped[key].daysOfWeek.push(ex.dayOfWeek);
+      }
+      if (ex.dayOfMonth !== undefined) {
+        grouped[key].daysOfMonth.push(ex.dayOfMonth);
+      }
+    });
+    setExercises(Object.values(grouped));
+    setShowForm(true);
   };
 
   const validateForm = () => {
@@ -144,14 +183,24 @@ export default function CoachPlanPage() {
       }
     });
 
-    addTrainingPlan({
-      memberId: id,
-      name: planName.trim(),
-      cycleType,
-      startDate,
-      endDate,
-      exercises: flatExercises,
-    });
+    if (editingPlanId) {
+      updateTrainingPlan(editingPlanId, {
+        name: planName.trim(),
+        cycleType,
+        startDate,
+        endDate,
+        exercises: flatExercises,
+      });
+    } else {
+      addTrainingPlan({
+        memberId: id,
+        name: planName.trim(),
+        cycleType,
+        startDate,
+        endDate,
+        exercises: flatExercises,
+      });
+    }
 
     resetForm();
   };
@@ -237,7 +286,10 @@ export default function CoachPlanPage() {
         </div>
         {!showForm && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setEditingPlanId(null);
+              setShowForm(true);
+            }}
             className="btn-primary flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -249,7 +301,9 @@ export default function CoachPlanPage() {
       {showForm && (
         <div className="bg-white rounded-2xl p-6 shadow-sm animate-scale-in">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-800">创建训练计划</h2>
+            <h2 className="text-xl font-bold text-gray-800">
+              {editingPlanId ? '编辑训练计划' : '创建训练计划'}
+            </h2>
             <button
               onClick={resetForm}
               className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
@@ -596,6 +650,16 @@ export default function CoachPlanPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(plan.id);
+                      }}
+                      className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center hover:bg-amber-100 transition-colors"
+                      title="编辑计划"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

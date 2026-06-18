@@ -16,6 +16,12 @@ import {
   Percent,
   CalendarClock,
   ClipboardCheck,
+  Flame,
+  Clock,
+  TrendingDown,
+  LineChart,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import { useStore } from '../../store';
 import { StatCard, DiffBadge } from '../../components/common';
@@ -41,6 +47,19 @@ interface MemberSummary {
   daysSinceLastMeasurement: number | null;
 }
 
+type AnomalyType = 'consecutive_miss' | 'rate_drop' | 'plan_expiring';
+
+interface Anomaly {
+  id: string;
+  type: AnomalyType;
+  memberId: string;
+  memberName: string;
+  title: string;
+  description: string;
+  severity: 'high' | 'medium' | 'low';
+  targetRoute: string;
+}
+
 export default function CoachMembersPage() {
   const navigate = useNavigate();
   const members = useStore((s) => s.members);
@@ -52,6 +71,7 @@ export default function CoachMembersPage() {
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [checkinRateFilter, setCheckinRateFilter] = useState<CheckinRateFilter>('all');
   const [lastMeasurementFilter, setLastMeasurementFilter] = useState<LastMeasurementFilter>('all');
+  const [showAnomalies, setShowAnomalies] = useState(true);
 
   const weekDates = useMemo(() => getWeekDates(), []);
   const today = useMemo(() => new Date(formatDate(new Date())), []);
@@ -143,6 +163,99 @@ export default function CoachMembersPage() {
     const total = memberSummaries.reduce((sum, s) => sum + s.checkinRate, 0);
     return total / memberSummaries.length;
   }, [memberSummaries]);
+
+  const anomalies: Anomaly[] = useMemo(() => {
+    const result: Anomaly[] = [];
+    const todayStr = formatDate(new Date());
+    const todayDate = new Date(todayStr);
+
+    members.forEach((member) => {
+      const memberPlans = plans.filter((p) => p.memberId === member.id);
+      const past14Days: string[] = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(todayDate);
+        d.setDate(d.getDate() - i);
+        past14Days.push(formatDate(d));
+      }
+
+      const dailyRecords = past14Days.map((date) => {
+        const expected = getExpectedExercisesForDate(member.id, date, plans);
+        const completedCount = checkins.filter(
+          (c) =>
+            c.memberId === member.id &&
+            c.completed &&
+            expected.some((e) => e.planId === c.planId && e.exerciseId === c.exerciseId) &&
+            c.checkinDate === date
+        ).length;
+        return { date, expected: expected.length, completed: completedCount };
+      }).filter((d) => d.expected > 0);
+
+      let consecutiveMiss = 0;
+      for (let i = dailyRecords.length - 1; i >= 0; i--) {
+        if (dailyRecords[i].completed === 0) {
+          consecutiveMiss++;
+        } else {
+          break;
+        }
+      }
+      if (consecutiveMiss >= 2) {
+        result.push({
+          id: `miss-${member.id}`,
+          type: 'consecutive_miss',
+          memberId: member.id,
+          memberName: member.name,
+          title: `连续 ${consecutiveMiss} 天漏练`,
+          description: `最近 ${consecutiveMiss} 个有训练安排的日均未完成任何动作`,
+          severity: consecutiveMiss >= 4 ? 'high' : 'medium',
+          targetRoute: `/coach/members/${member.id}/review`,
+        });
+      }
+
+      const firstHalf = dailyRecords.slice(0, Math.floor(dailyRecords.length / 2));
+      const secondHalf = dailyRecords.slice(Math.floor(dailyRecords.length / 2));
+      const rateOf = (arr: typeof dailyRecords) => {
+        const e = arr.reduce((s, d) => s + d.expected, 0);
+        const c = arr.reduce((s, d) => s + d.completed, 0);
+        return e > 0 ? (c / e) * 100 : 0;
+      };
+      const prevRate = rateOf(firstHalf);
+      const currRate = rateOf(secondHalf);
+      if (prevRate >= 60 && currRate < prevRate - 25 && secondHalf.length >= 2) {
+        result.push({
+          id: `drop-${member.id}`,
+          type: 'rate_drop',
+          memberId: member.id,
+          memberName: member.name,
+          title: `完成率明显下降`,
+          description: `从 ${Math.round(prevRate)}% 降至 ${Math.round(currRate)}%，降幅超过 25%`,
+          severity: 'high',
+          targetRoute: `/coach/members/${member.id}/review`,
+        });
+      }
+
+      memberPlans.forEach((plan) => {
+        const end = new Date(plan.endDate);
+        const diffDays = Math.ceil((end.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays >= 0 && diffDays <= 7) {
+          result.push({
+            id: `expire-${member.id}-${plan.id}`,
+            type: 'plan_expiring',
+            memberId: member.id,
+            memberName: member.name,
+            title: `计划「${plan.name}」即将到期`,
+            description: `还有 ${diffDays} 天到期 (${plan.endDate})`,
+            severity: diffDays <= 2 ? 'high' : diffDays <= 4 ? 'medium' : 'low',
+            targetRoute: `/coach/members/${member.id}/calendar`,
+          });
+        }
+      });
+    });
+
+    return result.sort((a, b) => {
+      const sevOrder = { high: 0, medium: 1, low: 2 };
+      return sevOrder[a.severity] - sevOrder[b.severity];
+    });
+  }, [members, plans, checkins, today]);
 
   const filteredSummaries = useMemo(() => {
     let result = memberSummaries;
@@ -241,6 +354,86 @@ export default function CoachMembersPage() {
           color={avgCheckinRate >= 80 ? 'green' : avgCheckinRate >= 60 ? 'orange' : 'red'}
         />
       </div>
+
+      {anomalies.length > 0 && showAnomalies && (
+        <div className="bg-gradient-to-r from-amber-50 to-red-50 rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-amber-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">训练异常提醒</h3>
+                <p className="text-xs text-gray-500">共 {anomalies.length} 条需要关注</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAnomalies(false)}
+              className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white/60 flex items-center justify-center transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[360px] overflow-y-auto">
+            {anomalies.map((a) => {
+              const Icon =
+                a.type === 'consecutive_miss'
+                  ? Flame
+                  : a.type === 'rate_drop'
+                  ? TrendingDown
+                  : Clock;
+              const tone =
+                a.severity === 'high'
+                  ? 'border-red-200 bg-red-50'
+                  : a.severity === 'medium'
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-blue-200 bg-blue-50';
+              const badgeTone =
+                a.severity === 'high'
+                  ? 'bg-red-500'
+                  : a.severity === 'medium'
+                  ? 'bg-amber-500'
+                  : 'bg-blue-500';
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => navigate(a.targetRoute)}
+                  className={cn(
+                    'text-left p-3 rounded-xl border transition-all hover:shadow-md hover:-translate-y-0.5',
+                    tone
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center">
+                        <Icon className="w-4 h-4 text-gray-700" />
+                      </div>
+                      <span className="font-semibold text-gray-800 text-sm">{a.memberName}</span>
+                    </div>
+                    <span className={cn('w-2 h-2 rounded-full mt-1', badgeTone)} />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800 mb-1">{a.title}</p>
+                  <p className="text-xs text-gray-500 mb-2">{a.description}</p>
+                  <div className="flex items-center gap-1 text-xs text-gray-600 font-medium">
+                    <span>查看详情</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {anomalies.length > 0 && !showAnomalies && (
+        <button
+          onClick={() => setShowAnomalies(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 font-medium hover:bg-amber-100 transition-colors"
+        >
+          <AlertTriangle className="w-4 h-4" />
+          查看 {anomalies.length} 条训练异常提醒
+        </button>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="p-5 border-b border-gray-100 space-y-4">
@@ -440,7 +633,7 @@ export default function CoachMembersPage() {
                     )}
                   </td>
                   <td className="py-4 px-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() =>
                           navigate(
@@ -451,6 +644,15 @@ export default function CoachMembersPage() {
                       >
                         <FileText className="w-3.5 h-3.5" />
                         录入体测
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigate(`/coach/members/${summary.member.id}/trends`)
+                        }
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                      >
+                        <LineChart className="w-3.5 h-3.5" />
+                        体测趋势
                       </button>
                       <button
                         onClick={() =>

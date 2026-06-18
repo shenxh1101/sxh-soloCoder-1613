@@ -7,6 +7,7 @@ import CoachPlanPage from './pages/coach/CoachPlanPage';
 import CoachCheckinPage from './pages/coach/CoachCheckinPage';
 import CoachCalendarPage from './pages/coach/CoachCalendarPage';
 import CoachReviewPage from './pages/coach/CoachReviewPage';
+import CoachMemberTrendsPage from './pages/coach/CoachMemberTrendsPage';
 import MemberTrendsPage from './pages/member/MemberTrendsPage';
 import MemberWeeklyPlanPage from './pages/member/MemberWeeklyPlanPage';
 
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/coach/members/:id/plans" element={<Layout role="coach"><CoachPlanPage /></Layout>} />
       <Route path="/coach/members/:id/calendar" element={<Layout role="coach"><CoachCalendarPage /></Layout>} />
       <Route path="/coach/members/:id/review" element={<Layout role="coach"><CoachReviewPage /></Layout>} />
+      <Route path="/coach/members/:id/trends" element={<Layout role="coach"><CoachMemberTrendsPage /></Layout>} />
       <Route path="/coach/checkin-stats" element={<Layout role="coach"><CoachCheckinPage /></Layout>} />
       <Route path="/member/trends" element={<Layout role="member"><MemberTrendsPage /></Layout>} />
       <Route path="/member/weekly-plan" element={<Layout role="member"><MemberWeeklyPlanPage /></Layout>} />
