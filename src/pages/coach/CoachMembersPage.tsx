@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store';
 import { StatCard, DiffBadge } from '../../components/common';
-import { exportMeasurementsToExcel } from '../../utils/export';
-import { getWeekDates } from '../../utils/date';
+import { exportMeasurementsToExcel, exportAllMembersMeasurementsToExcel } from '../../utils/export';
+import { getWeekDates, isExerciseOnDate } from '../../utils/date';
 import { cn } from '../../lib/utils';
 import type { Member, Measurement } from '../../types';
 
@@ -62,9 +62,8 @@ export default function CoachMembersPage() {
     let expectedThisWeek = 0;
     memberPlans.forEach((plan) => {
       plan.exercises.forEach((exercise) => {
-        const exerciseDay = exercise.dayOfWeek;
-        weekDates.forEach((_, idx) => {
-          if (idx === exerciseDay) {
+        weekDates.forEach((date) => {
+          if (isExerciseOnDate(exercise, plan.cycleType, date)) {
             expectedThisWeek++;
           }
         });
@@ -155,12 +154,8 @@ export default function CoachMembersPage() {
   }, [memberSummaries, searchQuery, filterType]);
 
   const handleExportAll = () => {
-    memberSummaries.forEach((summary) => {
-      const memberMeasurements = getMemberMeasurements(summary.member.id);
-      if (memberMeasurements.length > 0) {
-        exportMeasurementsToExcel(summary.member.name, memberMeasurements);
-      }
-    });
+    const memberList = members.map((m) => ({ id: m.id, name: m.name }));
+    exportAllMembersMeasurementsToExcel(memberList, measurements);
   };
 
   const handleExportMember = (summary: MemberSummary) => {

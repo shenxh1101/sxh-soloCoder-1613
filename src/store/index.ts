@@ -104,7 +104,7 @@ export const useStore = create<GymState>()(
         }),
     }),
     {
-      name: 'gym-app-state-v2',
+      name: 'gym-app-state-v3',
     }
   )
 );

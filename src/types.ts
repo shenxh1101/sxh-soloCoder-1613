@@ -36,7 +36,8 @@ export interface PlanExercise {
   sets: number;
   reps: number;
   weight: number;
-  dayOfWeek: number;
+  dayOfWeek?: number;
+  dayOfMonth?: number;
 }
 
 export interface TrainingPlan {

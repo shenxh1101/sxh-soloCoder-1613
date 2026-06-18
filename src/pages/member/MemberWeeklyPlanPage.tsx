@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Check, Clock, Dumbbell, CheckCircle, Calendar } from 'lucide-react';
 import { useStore } from '../../store';
-import { getWeekDates, getDayName, formatDateTime, isToday } from '../../utils/date';
+import { getWeekDates, getDayName, formatTimeOnly, isToday, isExerciseOnDate } from '../../utils/date';
 import type { PlanExercise } from '../../types';
 
 interface DayExercises {
@@ -37,7 +37,7 @@ export default function MemberWeeklyPlanPage() {
       const exercises: DayExercises['exercises'] = [];
       weekPlans.forEach((plan) => {
         plan.exercises.forEach((exercise) => {
-          if (exercise.dayOfWeek === dayOfWeek) {
+          if (isExerciseOnDate(exercise, plan.cycleType, date)) {
             exercises.push({ planId: plan.id, exercise });
           }
         });
@@ -203,9 +203,7 @@ export default function MemberWeeklyPlanPage() {
                             <CheckCircle className="w-4 h-4" />
                             <div className="flex items-center gap-1 text-sm">
                               <Clock className="w-3 h-3" />
-                              {checkin?.checkinTime
-                                ? formatDateTime(checkin.checkinTime).split(' ')[1]
-                                : ''}
+                              {formatTimeOnly(checkin?.checkinTime || '')}
                             </div>
                           </div>
                         ) : (

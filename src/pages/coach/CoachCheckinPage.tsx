@@ -8,7 +8,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useStore } from '../../store';
 import { StatCard } from '../../components/common';
 import { cn } from '../../lib/utils';
-import { getWeekDates, formatDate } from '../../utils/date';
+import { getWeekDates, formatDate, isExerciseOnDate } from '../../utils/date';
 
 const getRateColor = (rate: number) => {
   if (rate < 60) return '#ef4444';
@@ -84,9 +84,8 @@ export default function CoachCheckinPage() {
     let expectedThisWeek = 0;
     memberPlans.forEach((plan) => {
       plan.exercises.forEach((exercise) => {
-        const exerciseDay = exercise.dayOfWeek;
-        weekDates.forEach((_, idx) => {
-          if (idx === exerciseDay) {
+        weekDates.forEach((date) => {
+          if (isExerciseOnDate(exercise, plan.cycleType, date)) {
             expectedThisWeek++;
           }
         });

@@ -385,9 +385,9 @@ export const mockTrainingPlans: TrainingPlan[] = [
     startDate: '2025-09-01',
     endDate: '2026-12-31',
     exercises: [
-      { id: 'exercise-1-2-1', planId: 'plan-1-2', name: '跑步', sets: 1, reps: 5000, weight: 0, dayOfWeek: 1 },
-      { id: 'exercise-1-2-2', planId: 'plan-1-2', name: '划船机', sets: 1, reps: 3000, weight: 0, dayOfWeek: 3 },
-      { id: 'exercise-1-2-3', planId: 'plan-1-2', name: '动感单车', sets: 1, reps: 45, weight: 0, dayOfWeek: 5 }
+      { id: 'exercise-1-2-1', planId: 'plan-1-2', name: '跑步', sets: 1, reps: 5000, weight: 0, dayOfMonth: 16 },
+      { id: 'exercise-1-2-2', planId: 'plan-1-2', name: '划船机', sets: 1, reps: 3000, weight: 0, dayOfMonth: 18 },
+      { id: 'exercise-1-2-3', planId: 'plan-1-2', name: '动感单车', sets: 1, reps: 45, weight: 0, dayOfMonth: 20 }
     ]
   },
   {
@@ -412,13 +412,13 @@ export const mockTrainingPlans: TrainingPlan[] = [
     name: '中年健康计划',
     cycleType: 'monthly',
     startDate: '2025-10-01',
-    endDate: '2026-04-01',
+    endDate: '2026-12-31',
     exercises: [
-      { id: 'exercise-3-1-1', planId: 'plan-3-1', name: '跑步', sets: 1, reps: 3000, weight: 0, dayOfWeek: 0 },
-      { id: 'exercise-3-1-2', planId: 'plan-3-1', name: '深蹲', sets: 3, reps: 10, weight: 40, dayOfWeek: 1 },
-      { id: 'exercise-3-1-3', planId: 'plan-3-1', name: '卧推', sets: 3, reps: 10, weight: 35, dayOfWeek: 1 },
-      { id: 'exercise-3-1-4', planId: 'plan-3-1', name: '划船机', sets: 1, reps: 2500, weight: 0, dayOfWeek: 3 },
-      { id: 'exercise-3-1-5', planId: 'plan-3-1', name: '平板支撑', sets: 3, reps: 45, weight: 0, dayOfWeek: 5 }
+      { id: 'exercise-3-1-1', planId: 'plan-3-1', name: '跑步', sets: 1, reps: 3000, weight: 0, dayOfMonth: 15 },
+      { id: 'exercise-3-1-2', planId: 'plan-3-1', name: '深蹲', sets: 3, reps: 10, weight: 40, dayOfMonth: 16 },
+      { id: 'exercise-3-1-3', planId: 'plan-3-1', name: '卧推', sets: 3, reps: 10, weight: 35, dayOfMonth: 17 },
+      { id: 'exercise-3-1-4', planId: 'plan-3-1', name: '划船机', sets: 1, reps: 2500, weight: 0, dayOfMonth: 19 },
+      { id: 'exercise-3-1-5', planId: 'plan-3-1', name: '平板支撑', sets: 3, reps: 45, weight: 0, dayOfMonth: 21 }
     ]
   },
   {
@@ -427,7 +427,7 @@ export const mockTrainingPlans: TrainingPlan[] = [
     name: '力量恢复计划',
     cycleType: 'weekly',
     startDate: '2025-11-01',
-    endDate: '2026-05-01',
+    endDate: '2026-12-31',
     exercises: [
       { id: 'exercise-3-2-1', planId: 'plan-3-2', name: '硬拉', sets: 3, reps: 8, weight: 55, dayOfWeek: 2 },
       { id: 'exercise-3-2-2', planId: 'plan-3-2', name: '引体向上', sets: 3, reps: 6, weight: 0, dayOfWeek: 2 },
@@ -441,7 +441,7 @@ export const mockTrainingPlans: TrainingPlan[] = [
     name: '产后恢复计划',
     cycleType: 'weekly',
     startDate: '2025-09-01',
-    endDate: '2026-03-01',
+    endDate: '2026-12-31',
     exercises: [
       { id: 'exercise-4-1-1', planId: 'plan-4-1', name: '平板支撑', sets: 3, reps: 30, weight: 0, dayOfWeek: 0 },
       { id: 'exercise-4-1-2', planId: 'plan-4-1', name: '臀桥', sets: 4, reps: 15, weight: 15, dayOfWeek: 0 },
@@ -459,14 +459,14 @@ export const mockTrainingPlans: TrainingPlan[] = [
     startDate: '2025-10-01',
     endDate: '2026-12-31',
     exercises: [
-      { id: 'exercise-5-1-1', planId: 'plan-5-1', name: '深蹲', sets: 5, reps: 8, weight: 80, dayOfWeek: 0 },
-      { id: 'exercise-5-1-2', planId: 'plan-5-1', name: '卧推', sets: 5, reps: 8, weight: 65, dayOfWeek: 0 },
-      { id: 'exercise-5-1-3', planId: 'plan-5-1', name: '硬拉', sets: 4, reps: 6, weight: 90, dayOfWeek: 2 },
-      { id: 'exercise-5-1-4', planId: 'plan-5-1', name: '引体向上', sets: 4, reps: 10, weight: 0, dayOfWeek: 2 },
-      { id: 'exercise-5-1-5', planId: 'plan-5-1', name: '哑铃弯举', sets: 4, reps: 12, weight: 16, dayOfWeek: 4 },
-      { id: 'exercise-5-1-6', planId: 'plan-5-1', name: '平板支撑', sets: 4, reps: 90, weight: 0, dayOfWeek: 4 },
-      { id: 'exercise-5-1-7', planId: 'plan-5-1', name: '划船机', sets: 1, reps: 3000, weight: 0, dayOfWeek: 5 },
-      { id: 'exercise-5-1-8', planId: 'plan-5-1', name: '跑步', sets: 1, reps: 4000, weight: 0, dayOfWeek: 6 }
+      { id: 'exercise-5-1-1', planId: 'plan-5-1', name: '深蹲', sets: 5, reps: 8, weight: 80, dayOfMonth: 15 },
+      { id: 'exercise-5-1-2', planId: 'plan-5-1', name: '卧推', sets: 5, reps: 8, weight: 65, dayOfMonth: 15 },
+      { id: 'exercise-5-1-3', planId: 'plan-5-1', name: '硬拉', sets: 4, reps: 6, weight: 90, dayOfMonth: 17 },
+      { id: 'exercise-5-1-4', planId: 'plan-5-1', name: '引体向上', sets: 4, reps: 10, weight: 0, dayOfMonth: 17 },
+      { id: 'exercise-5-1-5', planId: 'plan-5-1', name: '哑铃弯举', sets: 4, reps: 12, weight: 16, dayOfMonth: 19 },
+      { id: 'exercise-5-1-6', planId: 'plan-5-1', name: '平板支撑', sets: 4, reps: 90, weight: 0, dayOfMonth: 19 },
+      { id: 'exercise-5-1-7', planId: 'plan-5-1', name: '划船机', sets: 1, reps: 3000, weight: 0, dayOfMonth: 20 },
+      { id: 'exercise-5-1-8', planId: 'plan-5-1', name: '跑步', sets: 1, reps: 4000, weight: 0, dayOfMonth: 21 }
     ]
   },
   {
@@ -492,9 +492,9 @@ export const mockTrainingPlans: TrainingPlan[] = [
     startDate: '2025-12-01',
     endDate: '2026-12-31',
     exercises: [
-      { id: 'exercise-6-2-1', planId: 'plan-6-2', name: '平板支撑', sets: 3, reps: 60, weight: 0, dayOfWeek: 2 },
-      { id: 'exercise-6-2-2', planId: 'plan-6-2', name: '动感单车', sets: 1, reps: 30, weight: 0, dayOfWeek: 5 },
-      { id: 'exercise-6-2-3', planId: 'plan-6-2', name: '哑铃弯举', sets: 3, reps: 12, weight: 4, dayOfWeek: 6 }
+      { id: 'exercise-6-2-1', planId: 'plan-6-2', name: '平板支撑', sets: 3, reps: 60, weight: 0, dayOfMonth: 17 },
+      { id: 'exercise-6-2-2', planId: 'plan-6-2', name: '动感单车', sets: 1, reps: 30, weight: 0, dayOfMonth: 19 },
+      { id: 'exercise-6-2-3', planId: 'plan-6-2', name: '哑铃弯举', sets: 3, reps: 12, weight: 4, dayOfMonth: 21 }
     ]
   }
 ];

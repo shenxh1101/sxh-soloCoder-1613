@@ -14,6 +14,25 @@ export const formatDateTime = (date: Date | string): string => {
   return `${formatDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+export const formatTimeOnly = (timeStr: string): string => {
+  if (!timeStr) return '';
+  
+  if (/^\d{2}:\d{2}$/.test(timeStr)) {
+    return timeStr;
+  }
+  
+  try {
+    const d = new Date(timeStr);
+    if (!isNaN(d.getTime())) {
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+  } catch (e) {
+    // ignore
+  }
+  
+  return '';
+};
+
 export const getWeekDates = (baseDate?: Date | string): string[] => {
   const base = baseDate ? parseDate(baseDate) : new Date();
   const day = base.getDay();
@@ -41,4 +60,35 @@ export const isToday = (dateStr: string): boolean => {
 export const isThisWeek = (dateStr: string): boolean => {
   const weekDates = getWeekDates();
   return weekDates.includes(dateStr);
+};
+
+export const getDayOfMonth = (dateStr: string): number => {
+  const d = parseDate(dateStr);
+  return d.getDate();
+};
+
+export const getExerciseDayLabel = (exercise: { dayOfWeek?: number; dayOfMonth?: number }, cycleType: 'weekly' | 'monthly'): string => {
+  if (cycleType === 'weekly' && exercise.dayOfWeek !== undefined) {
+    return getDayName(exercise.dayOfWeek);
+  }
+  if (cycleType === 'monthly' && exercise.dayOfMonth !== undefined) {
+    return `每月${exercise.dayOfMonth}日`;
+  }
+  return '';
+};
+
+export const isExerciseOnDate = (
+  exercise: { dayOfWeek?: number; dayOfMonth?: number },
+  cycleType: 'weekly' | 'monthly',
+  dateStr: string
+): boolean => {
+  if (cycleType === 'weekly' && exercise.dayOfWeek !== undefined) {
+    const weekDates = getWeekDates(dateStr);
+    const dayIndex = weekDates.indexOf(dateStr);
+    return dayIndex === exercise.dayOfWeek;
+  }
+  if (cycleType === 'monthly' && exercise.dayOfMonth !== undefined) {
+    return getDayOfMonth(dateStr) === exercise.dayOfMonth;
+  }
+  return false;
 };

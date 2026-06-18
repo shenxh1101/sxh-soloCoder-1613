@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store';
 import { cn } from '../../lib/utils';
-import { getDayName } from '../../utils/date';
+import { getDayName, getExerciseDayLabel } from '../../utils/date';
+import type { PlanExercise } from '../../types';
 
 const EXERCISE_OPTIONS = [
   '深蹲',
@@ -45,6 +46,7 @@ interface ExerciseFormData {
   reps: number;
   weight: number;
   daysOfWeek: number[];
+  daysOfMonth: number[];
 }
 
 const emptyExercise = (): ExerciseFormData => ({
@@ -54,6 +56,7 @@ const emptyExercise = (): ExerciseFormData => ({
   reps: 12,
   weight: 0,
   daysOfWeek: [],
+  daysOfMonth: [],
 });
 
 export default function CoachPlanPage() {
@@ -107,7 +110,9 @@ export default function CoachPlanPage() {
       if (!ex.name.trim()) errors[`ex-name-${idx}`] = '请选择动作名称';
       if (ex.sets <= 0) errors[`ex-sets-${idx}`] = '组数必须大于0';
       if (ex.reps <= 0) errors[`ex-reps-${idx}`] = '次数必须大于0';
-      if (ex.daysOfWeek.length === 0)
+      if (cycleType === 'weekly' && ex.daysOfWeek.length === 0)
+        errors[`ex-days-${idx}`] = '至少选择一个训练日';
+      if (cycleType === 'monthly' && ex.daysOfMonth.length === 0)
         errors[`ex-days-${idx}`] = '至少选择一个训练日';
     });
     setFormErrors(errors);
@@ -117,15 +122,25 @@ export default function CoachPlanPage() {
   const handleSave = () => {
     if (!validateForm() || !id) return;
 
-    const flatExercises = exercises.flatMap((ex) =>
-      ex.daysOfWeek.map((day) => ({
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        weight: ex.weight,
-        dayOfWeek: day,
-      }))
-    );
+    const flatExercises: Omit<PlanExercise, 'id' | 'planId'>[] = exercises.flatMap((ex) => {
+      if (cycleType === 'weekly') {
+        return ex.daysOfWeek.map((day) => ({
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight,
+          dayOfWeek: day,
+        }));
+      } else {
+        return ex.daysOfMonth.map((day) => ({
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight,
+          dayOfMonth: day,
+        }));
+      }
+    }) as Omit<PlanExercise, 'id' | 'planId'>[];
 
     addTrainingPlan({
       memberId: id,
@@ -167,6 +182,21 @@ export default function CoachPlanPage() {
           daysOfWeek: hasDay
             ? e.daysOfWeek.filter((d) => d !== day)
             : [...e.daysOfWeek, day].sort(),
+        };
+      })
+    );
+  };
+
+  const toggleDayOfMonth = (exerciseId: string, day: number) => {
+    setExercises(
+      exercises.map((e) => {
+        if (e.id !== exerciseId) return e;
+        const hasDay = e.daysOfMonth.includes(day);
+        return {
+          ...e,
+          daysOfMonth: hasDay
+            ? e.daysOfMonth.filter((d) => d !== day)
+            : [...e.daysOfMonth, day].sort((a, b) => a - b),
         };
       })
     );
@@ -461,22 +491,39 @@ export default function CoachPlanPage() {
                     </div>
 
                     <div>
-                      <p className="text-xs text-gray-500 mb-2">训练日</p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {cycleType === 'weekly' ? '训练日（周几）' : '训练日（每月几号）'}
+                      </p>
                       <div className="flex flex-wrap gap-2">
-                        {DAY_OPTIONS.map((day) => (
-                          <button
-                            key={day.value}
-                            onClick={() => toggleDay(exercise.id, day.value)}
-                            className={cn(
-                              'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
-                              exercise.daysOfWeek.includes(day.value)
-                                ? 'bg-green-600 text-white border-green-600'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'
-                            )}
-                          >
-                            {day.label}
-                          </button>
-                        ))}
+                        {cycleType === 'weekly'
+                          ? DAY_OPTIONS.map((day) => (
+                              <button
+                                key={day.value}
+                                onClick={() => toggleDay(exercise.id, day.value)}
+                                className={cn(
+                                  'px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border',
+                                  exercise.daysOfWeek.includes(day.value)
+                                    ? 'bg-green-600 text-white border-green-600'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'
+                                )}
+                              >
+                                {day.label}
+                              </button>
+                            ))
+                          : Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <button
+                                key={day}
+                                onClick={() => toggleDayOfMonth(exercise.id, day)}
+                                className={cn(
+                                  'w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200 border',
+                                  exercise.daysOfMonth.includes(day)
+                                    ? 'bg-green-600 text-white border-green-600'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'
+                                )}
+                              >
+                                {day}
+                              </button>
+                            ))}
                       </div>
                       {formErrors[`ex-days-${idx}`] && (
                         <p className="mt-1 text-xs text-red-500">
@@ -591,7 +638,7 @@ export default function CoachPlanPage() {
                               </span>
                             )}
                             <span className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 border border-green-100">
-                              {getDayName(exercise.dayOfWeek)}
+                              {getExerciseDayLabel(exercise, plan.cycleType)}
                             </span>
                           </div>
                         </div>

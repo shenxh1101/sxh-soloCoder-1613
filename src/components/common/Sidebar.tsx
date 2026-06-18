@@ -17,12 +17,12 @@ interface SidebarProps {
 
 const coachNavItems = [
   { path: '/coach/members', label: '会员列表', icon: Users },
-  { path: '/coach/checkins', label: '打卡统计', icon: BarChart3 },
+  { path: '/coach/checkin-stats', label: '打卡统计', icon: BarChart3 },
 ];
 
 const memberNavItems = [
-  { path: '/member/trend', label: '体测趋势', icon: TrendingUp },
-  { path: '/member/plan', label: '当周计划', icon: CalendarDays },
+  { path: '/member/trends', label: '体测趋势', icon: TrendingUp },
+  { path: '/member/weekly-plan', label: '当周计划', icon: CalendarDays },
 ];
 
 export default function Sidebar({ role, currentPath, onNavigate }: SidebarProps) {
@@ -35,7 +35,7 @@ export default function Sidebar({ role, currentPath, onNavigate }: SidebarProps)
   const handleSwitchRole = () => {
     const newRole = role === 'coach' ? 'member' : 'coach';
     setRole(newRole);
-    navigate(newRole === 'coach' ? '/coach/members' : '/member/trend');
+    navigate(newRole === 'coach' ? '/coach/members' : '/member/trends');
   };
 
   return (
