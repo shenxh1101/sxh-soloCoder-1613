@@ -92,3 +92,14 @@ export const isExerciseOnDate = (
   }
   return false;
 };
+
+export const isDateInRange = (
+  dateStr: string,
+  startDate: string,
+  endDate: string
+): boolean => {
+  const d = new Date(dateStr);
+  const s = new Date(startDate);
+  const e = new Date(endDate);
+  return d >= s && d <= e;
+};

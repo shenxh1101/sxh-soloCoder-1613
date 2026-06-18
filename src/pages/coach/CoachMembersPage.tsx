@@ -12,15 +12,20 @@ import {
   Target,
   TrendingUp,
   User,
+  CalendarDays,
+  Percent,
+  CalendarClock,
 } from 'lucide-react';
 import { useStore } from '../../store';
 import { StatCard, DiffBadge } from '../../components/common';
 import { exportMeasurementsToExcel, exportAllMembersMeasurementsToExcel } from '../../utils/export';
-import { getWeekDates, isExerciseOnDate } from '../../utils/date';
+import { getWeekDates, isExerciseOnDate, isDateInRange, formatDate } from '../../utils/date';
 import { cn } from '../../lib/utils';
 import type { Member, Measurement } from '../../types';
 
 type FilterType = 'all' | 'rebound' | 'overfat' | 'attention';
+type CheckinRateFilter = 'all' | 'lt60' | '60to80' | 'gte80';
+type LastMeasurementFilter = 'all' | 'within7' | 'within30' | 'over30' | 'never';
 
 interface MemberSummary {
   member: Member;
@@ -32,6 +37,7 @@ interface MemberSummary {
   isOverFat: boolean;
   needsAttention: boolean;
   checkinRate: number;
+  daysSinceLastMeasurement: number | null;
 }
 
 export default function CoachMembersPage() {
@@ -43,8 +49,11 @@ export default function CoachMembersPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
+  const [checkinRateFilter, setCheckinRateFilter] = useState<CheckinRateFilter>('all');
+  const [lastMeasurementFilter, setLastMeasurementFilter] = useState<LastMeasurementFilter>('all');
 
   const weekDates = useMemo(() => getWeekDates(), []);
+  const today = useMemo(() => new Date(formatDate(new Date())), []);
 
   const getMemberMeasurements = (memberId: string): Measurement[] => {
     return measurements
@@ -63,7 +72,10 @@ export default function CoachMembersPage() {
     memberPlans.forEach((plan) => {
       plan.exercises.forEach((exercise) => {
         weekDates.forEach((date) => {
-          if (isExerciseOnDate(exercise, plan.cycleType, date)) {
+          if (
+            isExerciseOnDate(exercise, plan.cycleType, date) &&
+            isDateInRange(date, plan.startDate, plan.endDate)
+          ) {
             expectedThisWeek++;
           }
         });
@@ -106,6 +118,14 @@ export default function CoachMembersPage() {
           (member.gender === 'female' && latest.bodyFatRate > 30));
       const needsAttention = isWeightRebound || isOverFat;
 
+      let daysSinceLastMeasurement: number | null = null;
+      if (latest) {
+        const latestDate = new Date(latest.date);
+        daysSinceLastMeasurement = Math.floor(
+          (today.getTime() - latestDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+      }
+
       return {
         member,
         latestMeasurement: latest,
@@ -116,9 +136,10 @@ export default function CoachMembersPage() {
         isOverFat,
         needsAttention,
         checkinRate: calculateCheckinRate(member.id),
+        daysSinceLastMeasurement,
       };
     });
-  }, [members, measurements, plans, checkins]);
+  }, [members, measurements, plans, checkins, today]);
 
   const totalMembers = members.length;
 
@@ -150,11 +171,42 @@ export default function CoachMembersPage() {
       result = result.filter((s) => s.needsAttention);
     }
 
+    if (checkinRateFilter === 'lt60') {
+      result = result.filter((s) => s.checkinRate < 60);
+    } else if (checkinRateFilter === '60to80') {
+      result = result.filter((s) => s.checkinRate >= 60 && s.checkinRate < 80);
+    } else if (checkinRateFilter === 'gte80') {
+      result = result.filter((s) => s.checkinRate >= 80);
+    }
+
+    if (lastMeasurementFilter === 'within7') {
+      result = result.filter(
+        (s) => s.daysSinceLastMeasurement !== null && s.daysSinceLastMeasurement <= 7
+      );
+    } else if (lastMeasurementFilter === 'within30') {
+      result = result.filter(
+        (s) => s.daysSinceLastMeasurement !== null && s.daysSinceLastMeasurement <= 30
+      );
+    } else if (lastMeasurementFilter === 'over30') {
+      result = result.filter(
+        (s) => s.daysSinceLastMeasurement !== null && s.daysSinceLastMeasurement > 30
+      );
+    } else if (lastMeasurementFilter === 'never') {
+      result = result.filter((s) => s.daysSinceLastMeasurement === null);
+    }
+
     return result;
-  }, [memberSummaries, searchQuery, filterType]);
+  }, [memberSummaries, searchQuery, filterType, checkinRateFilter, lastMeasurementFilter]);
+
+  const isFiltered =
+    filterType !== 'all' ||
+    checkinRateFilter !== 'all' ||
+    lastMeasurementFilter !== 'all' ||
+    searchQuery.trim() !== '';
 
   const handleExportAll = () => {
-    const memberList = members.map((m) => ({ id: m.id, name: m.name }));
+    const exportTargets = isFiltered ? filteredSummaries.map((s) => s.member) : members;
+    const memberList = exportTargets.map((m) => ({ id: m.id, name: m.name }));
     exportAllMembersMeasurementsToExcel(memberList, measurements);
   };
 
@@ -202,7 +254,7 @@ export default function CoachMembersPage() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
+        <div className="p-5 border-b border-gray-100 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-1">
               <div className="relative flex-1 sm:max-w-xs">
@@ -229,13 +281,63 @@ export default function CoachMembersPage() {
                 </select>
               </div>
             </div>
-            <button
-              onClick={handleExportAll}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              导出全部Excel
-            </button>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              {isFiltered && (
+                <span className="text-xs px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full font-medium whitespace-nowrap">
+                  已筛选 {filteredSummaries.length}/{members.length} 人
+                </span>
+              )}
+              <button
+                onClick={handleExportAll}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors whitespace-nowrap"
+              >
+                <Download className="w-4 h-4" />
+                {isFiltered ? `导出筛选结果(${filteredSummaries.length})` : '导出全部Excel'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 items-center pt-1 border-t border-gray-50">
+            <div className="relative">
+              <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <select
+                value={checkinRateFilter}
+                onChange={(e) => setCheckinRateFilter(e.target.value as CheckinRateFilter)}
+                className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white cursor-pointer min-w-[180px] text-sm"
+              >
+                <option value="all">打卡率：全部</option>
+                <option value="lt60">打卡率＜60%</option>
+                <option value="60to80">打卡率 60%~80%</option>
+                <option value="gte80">打卡率≥80%</option>
+              </select>
+            </div>
+            <div className="relative">
+              <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <select
+                value={lastMeasurementFilter}
+                onChange={(e) => setLastMeasurementFilter(e.target.value as LastMeasurementFilter)}
+                className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none bg-white cursor-pointer min-w-[200px] text-sm"
+              >
+                <option value="all">最近体测：全部</option>
+                <option value="within7">最近 7 天内</option>
+                <option value="within30">最近 30 天内</option>
+                <option value="over30">超过 30 天</option>
+                <option value="never">从未体测</option>
+              </select>
+            </div>
+            {isFiltered && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilterType('all');
+                  setCheckinRateFilter('all');
+                  setLastMeasurementFilter('all');
+                }}
+                className="px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                清除筛选条件
+              </button>
+            )}
           </div>
         </div>
 
@@ -324,9 +426,29 @@ export default function CoachMembersPage() {
                     )}
                   </td>
                   <td className="py-4 px-4 text-sm text-gray-700">
-                    {summary.latestMeasurement
-                      ? summary.latestMeasurement.date
-                      : '--'}
+                    {summary.latestMeasurement ? (
+                      <div className="flex flex-col">
+                        <span className="font-medium">{summary.latestMeasurement.date}</span>
+                        {summary.daysSinceLastMeasurement !== null && (
+                          <span
+                            className={cn(
+                              'text-[11px] mt-0.5',
+                              summary.daysSinceLastMeasurement <= 7
+                                ? 'text-emerald-600'
+                                : summary.daysSinceLastMeasurement <= 30
+                                ? 'text-amber-600'
+                                : 'text-red-500'
+                            )}
+                          >
+                            {summary.daysSinceLastMeasurement === 0
+                              ? '今天'
+                              : `${summary.daysSinceLastMeasurement} 天前`}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">从未体测</span>
+                    )}
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-2">
@@ -349,6 +471,15 @@ export default function CoachMembersPage() {
                       >
                         <Dumbbell className="w-3.5 h-3.5" />
                         训练计划
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigate(`/coach/members/${summary.member.id}/calendar`)
+                        }
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-cyan-50 text-cyan-600 rounded-lg hover:bg-cyan-100 transition-colors"
+                      >
+                        <CalendarDays className="w-3.5 h-3.5" />
+                        计划日历
                       </button>
                       <button
                         onClick={() => handleExportMember(summary)}

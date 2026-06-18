@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Check, Clock, Dumbbell, CheckCircle, Calendar } from 'lucide-react';
+import { Check, Clock, Dumbbell, CheckCircle, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../../store';
-import { getWeekDates, getDayName, formatTimeOnly, isToday, isExerciseOnDate } from '../../utils/date';
+import { getWeekDates, getDayName, formatTimeOnly, isToday, isExerciseOnDate, isDateInRange, formatDate } from '../../utils/date';
 import type { PlanExercise } from '../../types';
 
 interface DayExercises {
@@ -13,14 +13,22 @@ interface DayExercises {
   }>;
 }
 
+const getWeekDatesWithOffset = (offset: number): string[] => {
+  const base = new Date();
+  base.setDate(base.getDate() + offset * 7);
+  return getWeekDates(formatDate(base));
+};
+
 export default function MemberWeeklyPlanPage() {
   const { members, currentMemberId, trainingPlans, checkins, toggleCheckin } = useStore();
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
+  const [weekOffset, setWeekOffset] = useState<number>(0);
 
   const member = members.find((m) => m.id === currentMemberId);
-  const weekDates = getWeekDates();
+  const weekDates = useMemo(() => getWeekDatesWithOffset(weekOffset), [weekOffset]);
   const weekStart = weekDates[0];
   const weekEnd = weekDates[6];
+  const isCurrentWeek = weekOffset === 0;
 
   const weekPlans = useMemo(() => {
     return trainingPlans.filter(
@@ -37,7 +45,10 @@ export default function MemberWeeklyPlanPage() {
       const exercises: DayExercises['exercises'] = [];
       weekPlans.forEach((plan) => {
         plan.exercises.forEach((exercise) => {
-          if (isExerciseOnDate(exercise, plan.cycleType, date)) {
+          if (
+            isExerciseOnDate(exercise, plan.cycleType, date) &&
+            isDateInRange(date, plan.startDate, plan.endDate)
+          ) {
             exercises.push({ planId: plan.id, exercise });
           }
         });
@@ -92,17 +103,53 @@ export default function MemberWeeklyPlanPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">当周训练计划</h1>
-        <p className="text-sm text-gray-500 flex items-center gap-2">
-          <Calendar className="w-4 h-4" />
-          {weekStart} ~ {weekEnd}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900">当周训练计划</h1>
+            {!isCurrentWeek && (
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                {weekOffset < 0 ? '历史周' : '未来周'}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setWeekOffset((o) => o - 1)}
+              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              aria-label="前一周"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <p className="text-sm text-gray-500 flex items-center gap-2 min-w-[200px] justify-center">
+              <Calendar className="w-4 h-4" />
+              {weekStart} ~ {weekEnd}
+            </p>
+            <button
+              onClick={() => setWeekOffset((o) => o + 1)}
+              className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              aria-label="后一周"
+              disabled={false}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            {!isCurrentWeek && (
+              <button
+                onClick={() => setWeekOffset(0)}
+                className="px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors"
+              >
+                回到本周
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-gray-700">本周完成进度</span>
+          <span className="text-sm font-medium text-gray-700">
+            {isCurrentWeek ? '本周完成进度' : '完成进度'}
+          </span>
           <span className="text-sm font-semibold text-emerald-600">
             {completedExercises}/{totalExercises} ({progressPercent}%)
           </span>
@@ -158,6 +205,7 @@ export default function MemberWeeklyPlanPage() {
                   const isCompleted = checkin?.completed;
                   const key = `${planId}-${exercise.id}-${day.date}`;
                   const isAnimating = animatingIds.has(key);
+                  const isFuture = new Date(day.date) > new Date(formatDate(new Date()));
 
                   return (
                     <div
@@ -208,13 +256,14 @@ export default function MemberWeeklyPlanPage() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => handleCheckin(planId, exercise.id, day.date)}
+                            onClick={() => !isFuture && handleCheckin(planId, exercise.id, day.date)}
+                            disabled={isFuture}
                             className={`px-5 py-2 rounded-xl font-medium text-white bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 flex items-center gap-2 active:scale-95 ${
                               isAnimating ? 'scale-110' : 'scale-100'
-                            }`}
+                            } ${isFuture ? 'opacity-40 cursor-not-allowed hover:from-emerald-500 hover:to-emerald-600' : ''}`}
                           >
                             <Check className="w-4 h-4" />
-                            <span>打卡</span>
+                            <span>{isFuture ? '未到时间' : '打卡'}</span>
                           </button>
                         )}
                       </div>
