@@ -9,13 +9,21 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { Scale, TrendingUp, History, User, Filter } from 'lucide-react';
+import { Scale, TrendingUp, History, User, Filter, Download, Calendar } from 'lucide-react';
 import { StatCard, DiffBadge } from '../../components/common';
 import { useStore } from '../../store';
 import { cn } from '../../lib/utils';
+import { exportMeasurementsToExcel } from '../../utils/export';
 import type { Measurement } from '../../types';
 
 type MetricKey = 'weight' | 'bodyFatRate' | 'chest' | 'waist' | 'hip' | 'heartRate';
+type TimeRange = 'all' | '3m' | '6m';
+
+const TIME_RANGE_LABELS: Record<TimeRange, string> = {
+  all: '全部',
+  '3m': '最近3个月',
+  '6m': '最近半年',
+};
 
 interface MetricConfig {
   key: MetricKey;
@@ -74,14 +82,28 @@ export default function MemberTrendsPage() {
     'weight',
     'bodyFatRate',
   ]);
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
 
   const member = members.find((m) => m.id === currentMemberId);
 
-  const memberMeasurements = useMemo(() => {
+  const allMemberMeasurements = useMemo(() => {
     return measurements
       .filter((m) => m.memberId === currentMemberId)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [measurements, currentMemberId]);
+
+  const memberMeasurements = useMemo(() => {
+    if (timeRange === 'all') return allMemberMeasurements;
+    const now = new Date();
+    const cutoff = new Date(now);
+    if (timeRange === '3m') {
+      cutoff.setMonth(cutoff.getMonth() - 3);
+    } else if (timeRange === '6m') {
+      cutoff.setMonth(cutoff.getMonth() - 6);
+    }
+    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+    return allMemberMeasurements.filter((m) => m.date >= cutoffStr);
+  }, [allMemberMeasurements, timeRange]);
 
   const selectedMetricConfigs = useMemo(
     () => ALL_METRICS.filter((m) => selectedMetrics.includes(m.key)),
@@ -113,6 +135,11 @@ export default function MemberTrendsPage() {
   );
 
   const recentRecords = [...memberMeasurements].reverse().slice(0, 10);
+
+  const handleExport = () => {
+    if (!member) return;
+    exportMeasurementsToExcel(member.name, [...memberMeasurements].reverse());
+  };
 
   const getHistoryDiff = (index: number): MetricDiffMap => {
     if (index >= recentRecords.length - 1) {
@@ -258,6 +285,43 @@ export default function MemberTrendsPage() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <span className="text-sm font-semibold text-gray-700">时间范围</span>
+            <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+              {(['all', '3m', '6m'] as TimeRange[]).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={cn(
+                    'px-4 py-1.5 rounded-lg text-sm font-medium transition-all',
+                    timeRange === range
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  {TIME_RANGE_LABELS[range]}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-gray-400">
+              共 {memberMeasurements.length} 条记录
+            </span>
+          </div>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors text-sm"
+          >
+            <Download className="w-4 h-4" />
+            导出{timeRange !== 'all' ? TIME_RANGE_LABELS[timeRange] : ''}数据
+          </button>
         </div>
       </div>
 

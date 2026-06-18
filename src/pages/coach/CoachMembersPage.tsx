@@ -15,11 +15,12 @@ import {
   CalendarDays,
   Percent,
   CalendarClock,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useStore } from '../../store';
 import { StatCard, DiffBadge } from '../../components/common';
 import { exportMeasurementsToExcel, exportAllMembersMeasurementsToExcel } from '../../utils/export';
-import { getWeekDates, isExerciseOnDate, isDateInRange, formatDate } from '../../utils/date';
+import { getWeekDates, isExerciseOnDate, isDateInRange, formatDate, getExpectedExercisesForDate } from '../../utils/date';
 import { cn } from '../../lib/utils';
 import type { Member, Measurement } from '../../types';
 
@@ -62,37 +63,25 @@ export default function CoachMembersPage() {
   };
 
   const calculateCheckinRate = (memberId: string): number => {
-    const memberPlans = plans.filter((p) => p.memberId === memberId);
-    const memberPlanIds = memberPlans.map((p) => p.id);
-    const memberExerciseIds = memberPlans.flatMap((p) =>
-      p.exercises.map((e) => e.id)
-    );
-
     let expectedThisWeek = 0;
-    memberPlans.forEach((plan) => {
-      plan.exercises.forEach((exercise) => {
-        weekDates.forEach((date) => {
-          if (
-            isExerciseOnDate(exercise, plan.cycleType, date) &&
-            isDateInRange(date, plan.startDate, plan.endDate)
-          ) {
-            expectedThisWeek++;
-          }
-        });
+    const expectedKeys = new Set<string>();
+    weekDates.forEach((date) => {
+      const expected = getExpectedExercisesForDate(memberId, date, plans);
+      expectedThisWeek += expected.length;
+      expected.forEach(({ planId, exerciseId }) => {
+        expectedKeys.add(`${planId}-${exerciseId}-${date}`);
       });
     });
 
-    const weekCheckins = checkins.filter(
+    const completedThisWeek = checkins.filter(
       (c) =>
         c.memberId === memberId &&
-        memberPlanIds.includes(c.planId) &&
-        memberExerciseIds.includes(c.exerciseId) &&
-        weekDates.includes(c.checkinDate) &&
-        c.completed
-    );
+        c.completed &&
+        expectedKeys.has(`${c.planId}-${c.exerciseId}-${c.checkinDate}`)
+    ).length;
 
     return expectedThisWeek > 0
-      ? (weekCheckins.length / expectedThisWeek) * 100
+      ? (completedThisWeek / expectedThisWeek) * 100
       : 0;
   };
 
@@ -480,6 +469,15 @@ export default function CoachMembersPage() {
                       >
                         <CalendarDays className="w-3.5 h-3.5" />
                         计划日历
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigate(`/coach/members/${summary.member.id}/review`)
+                        }
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors"
+                      >
+                        <ClipboardCheck className="w-3.5 h-3.5" />
+                        训练复盘
                       </button>
                       <button
                         onClick={() => handleExportMember(summary)}

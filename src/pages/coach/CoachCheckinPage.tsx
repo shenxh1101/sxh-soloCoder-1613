@@ -8,7 +8,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useStore } from '../../store';
 import { StatCard } from '../../components/common';
 import { cn } from '../../lib/utils';
-import { getWeekDates, formatDate, isExerciseOnDate, isDateInRange } from '../../utils/date';
+import { getWeekDates, formatDate, getExpectedExercisesForDate } from '../../utils/date';
 
 const getRateColor = (rate: number) => {
   if (rate < 60) return '#ef4444';
@@ -75,54 +75,44 @@ export default function CoachCheckinPage() {
   const today = formatDate(new Date());
 
   const memberStats = members.map((member) => {
-    const memberPlans = plans.filter((p) => p.memberId === member.id);
-    const memberPlanIds = memberPlans.map((p) => p.id);
-    const memberExerciseIds = memberPlans.flatMap((p) =>
-      p.exercises.map((e) => e.id)
-    );
-
     let expectedThisWeek = 0;
-    memberPlans.forEach((plan) => {
-      plan.exercises.forEach((exercise) => {
-        weekDates.forEach((date) => {
-          if (
-            isExerciseOnDate(exercise, plan.cycleType, date) &&
-            isDateInRange(date, plan.startDate, plan.endDate)
-          ) {
-            expectedThisWeek++;
-          }
-        });
+    const expectedKeys = new Set<string>();
+    weekDates.forEach((date) => {
+      const expected = getExpectedExercisesForDate(member.id, date, plans);
+      expectedThisWeek += expected.length;
+      expected.forEach(({ planId, exerciseId }) => {
+        expectedKeys.add(`${planId}-${exerciseId}-${date}`);
       });
     });
 
-    const weekCheckins = checkins.filter(
+    const completedThisWeek = checkins.filter(
       (c) =>
         c.memberId === member.id &&
-        memberPlanIds.includes(c.planId) &&
-        memberExerciseIds.includes(c.exerciseId) &&
-        weekDates.includes(c.checkinDate) &&
-        c.completed
+        c.completed &&
+        expectedKeys.has(`${c.planId}-${c.exerciseId}-${c.checkinDate}`)
+    ).length;
+
+    const todayExpected = getExpectedExercisesForDate(member.id, today, plans);
+    const todayExpectedKeys = new Set(
+      todayExpected.map(({ planId, exerciseId }) => `${planId}-${exerciseId}`)
+    );
+    const todayChecked = checkins.some(
+      (c) =>
+        c.memberId === member.id &&
+        c.completed &&
+        c.checkinDate === today &&
+        todayExpectedKeys.has(`${c.planId}-${c.exerciseId}`)
     );
 
-    const completedThisWeek = weekCheckins.length;
     const rate =
       expectedThisWeek > 0 ? (completedThisWeek / expectedThisWeek) * 100 : 0;
-
-    const todayCheckins = checkins.filter(
-      (c) =>
-        c.memberId === member.id &&
-        memberPlanIds.includes(c.planId) &&
-        memberExerciseIds.includes(c.exerciseId) &&
-        c.checkinDate === today &&
-        c.completed
-    );
 
     return {
       member,
       expectedThisWeek,
       completedThisWeek,
       rate,
-      checkedToday: todayCheckins.length > 0,
+      checkedToday: todayChecked,
     };
   });
 

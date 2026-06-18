@@ -103,3 +103,31 @@ export const isDateInRange = (
   const e = new Date(endDate);
   return d >= s && d <= e;
 };
+
+export const getExpectedExercisesForDate = (
+  memberId: string,
+  dateStr: string,
+  plans: Array<{
+    id: string;
+    memberId: string;
+    cycleType: 'weekly' | 'monthly';
+    startDate: string;
+    endDate: string;
+    exercises: Array<{ id: string; dayOfWeek?: number; dayOfMonth?: number }>;
+  }>
+): Array<{ planId: string; exerciseId: string }> => {
+  const result: Array<{ planId: string; exerciseId: string }> = [];
+  plans
+    .filter((p) => p.memberId === memberId)
+    .forEach((plan) => {
+      plan.exercises.forEach((exercise) => {
+        if (
+          isExerciseOnDate(exercise, plan.cycleType, dateStr) &&
+          isDateInRange(dateStr, plan.startDate, plan.endDate)
+        ) {
+          result.push({ planId: plan.id, exerciseId: exercise.id });
+        }
+      });
+    });
+  return result;
+};

@@ -130,6 +130,7 @@ export default function CoachPlanPage() {
           reps: ex.reps,
           weight: ex.weight,
           dayOfWeek: day,
+          dayOfMonth: undefined,
         }));
       } else {
         return ex.daysOfMonth.map((day) => ({
@@ -137,10 +138,11 @@ export default function CoachPlanPage() {
           sets: ex.sets,
           reps: ex.reps,
           weight: ex.weight,
+          dayOfWeek: undefined,
           dayOfMonth: day,
         }));
       }
-    }) as Omit<PlanExercise, 'id' | 'planId'>[];
+    });
 
     addTrainingPlan({
       memberId: id,

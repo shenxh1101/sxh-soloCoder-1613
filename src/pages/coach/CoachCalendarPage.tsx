@@ -9,6 +9,8 @@ import {
   Clock,
   ArrowLeft,
   X,
+  ClipboardCheck,
+  Users,
 } from 'lucide-react';
 import { useStore } from '../../store';
 import {
@@ -71,11 +73,19 @@ export default function CoachCalendarPage() {
   const navigate = useNavigate();
   const { members, trainingPlans, checkins } = useStore();
 
-  const member = useMemo(() => members.find((m) => m.id === id), [members, id]);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(id || '');
+
+  const currentMemberId = selectedMemberId || id || '';
+  const member = useMemo(() => members.find((m) => m.id === currentMemberId), [members, currentMemberId]);
   const memberPlans = useMemo(
-    () => trainingPlans.filter((p) => p.memberId === id),
-    [trainingPlans, id]
+    () => trainingPlans.filter((p) => p.memberId === currentMemberId),
+    [trainingPlans, currentMemberId]
   );
+
+  const handleMemberChange = (newId: string) => {
+    setSelectedMemberId(newId);
+    navigate(`/coach/members/${newId}/calendar`, { replace: true });
+  };
 
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [baseDate, setBaseDate] = useState<string>(formatDate(new Date()));
@@ -108,7 +118,7 @@ export default function CoachCalendarPage() {
         ) {
           const checkin = checkins.find(
             (c) =>
-              c.memberId === id &&
+              c.memberId === currentMemberId &&
               c.planId === plan.id &&
               c.exerciseId === exercise.id &&
               c.checkinDate === dateStr
@@ -131,7 +141,7 @@ export default function CoachCalendarPage() {
       date,
       exercises: getExercisesForDate(date),
     }));
-  }, [weekDates, memberPlans, checkins, id]);
+  }, [weekDates, memberPlans, checkins, currentMemberId]);
 
   const monthDaysData = useMemo(() => {
     return monthDates.map(({ date, isCurrentMonth }) => ({
@@ -139,7 +149,7 @@ export default function CoachCalendarPage() {
       isCurrentMonth,
       exercises: getExercisesForDate(date),
     }));
-  }, [monthDates, memberPlans, checkins, id]);
+  }, [monthDates, memberPlans, checkins, currentMemberId]);
 
   const selectedDayData = useMemo(() => {
     if (!selectedDate) return null;
@@ -147,7 +157,7 @@ export default function CoachCalendarPage() {
       date: selectedDate,
       exercises: getExercisesForDate(selectedDate),
     };
-  }, [selectedDate, memberPlans, checkins, id]);
+  }, [selectedDate, memberPlans, checkins, currentMemberId]);
 
   const totalExercisesWeek = weekDaysData.reduce((sum, d) => sum + d.exercises.length, 0);
   const completedExercisesWeek = weekDaysData.reduce(
@@ -167,7 +177,7 @@ export default function CoachCalendarPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/coach/members')}
@@ -181,6 +191,30 @@ export default function CoachCalendarPage() {
               {member.age}岁 · {member.gender === 'male' ? '男' : '女'} · 训练计划日历
             </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={currentMemberId}
+              onChange={(e) => handleMemberChange(e.target.value)}
+              className="pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent appearance-none bg-white cursor-pointer min-w-[140px] text-sm"
+            >
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => navigate(`/coach/members/${currentMemberId}/review`)}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
+          >
+            <ClipboardCheck className="w-4 h-4" />
+            训练复盘
+          </button>
         </div>
       </div>
 
